@@ -2,7 +2,10 @@
 
 **Jaret Arnold** — May 2025
 
-> Course write-up, bioinformatics. This is the submitted document with citation and internal-consistency errors corrected; the original submitted `.docx` is preserved unchanged in [`docs/`](docs/), and [`CORRECTIONS.md`](CORRECTIONS.md) lists what was changed. Figures are placed at their point of reference, with the original captions where the document supplied them.
+> Course write-up, bioinformatics. This is the submitted document with its citation and
+> internal-consistency errors corrected. The original `.docx` is preserved unchanged in [`docs/`](docs/),
+> and [CORRECTIONS.md](CORRECTIONS.md) lists what was changed. Figures sit at their point of reference,
+> with the original captions where the document supplied them.
 
 ## Abstract
 
