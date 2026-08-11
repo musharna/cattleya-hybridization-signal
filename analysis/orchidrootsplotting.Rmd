@@ -1,0 +1,1395 @@
+---
+title: "OrchidRoots Analysis"
+output: html_notebook
+---
+
+
+```{r}
+#imports and file load
+library(tidyverse)
+library(ggplot2)
+
+hybrids <- read.csv("../data/orchidroots_cattleya_hybrids.csv")
+species <- read.csv("../data/orchidroots_cattleya_species.csv")
+
+summary(hybrids)
+summary(species)
+
+```
+
+```{r}
+#Data Cleaning
+
+# Remove subsp. and var. from Species entries 
+species_filtered <- species[grepl("subsp\\. |\\svar\\.", species$Binomial) == FALSE, ]
+
+
+# Remove any hybrids which are just synonyms 
+hybrids_filtered <- hybrids[!grepl("Synonym of", hybrids$Parentage), ]
+
+# Filter out the year 2025
+hybrids_filtered <- hybrids_filtered[hybrids_filtered$Year != 2025, ]
+
+#Move more data preparation here!
+```
+
+```{r}
+#Examining Species acceptance status 
+#Some species maybe not found in ncbi but probably still species
+#Some recent classifications 
+
+library(taxize)
+
+# Function to check if species are accepted using NCBI (alternative database)
+check_accepted_species_ncbi <- function(species_list) {
+  accepted_species <- sapply(species_list, function(species) {
+    # Get the taxonomic ID (taxid) from NCBI
+    tax_info <- get_uid(species, db = "ncbi")
+    
+    # If a valid taxid (Taxonomic ID) is returned, it's accepted
+    if (!is.na(tax_info)) {
+      accepted <- TRUE
+    } else {
+      accepted <- FALSE
+    }
+    return(accepted)
+  })
+  return(accepted_species)
+}
+
+# Apply the function to the 'Binomial' column for NCBI
+accepted_ncbi <- check_accepted_species_ncbi(species_filtered$Binomial)
+
+# Add the results back to the data frame
+species_filtered$Accepted <- accepted_ncbi
+
+# Print the results for the whole dataset (showing species and their acceptance status)
+print(species_filtered)
+
+# Filter to get only accepted species
+accepted_species_list <- species_filtered[species_filtered$Accepted == TRUE, ]
+print("Accepted Species List:")
+print(accepted_species_list)
+
+# Filter to get only not accepted species
+not_accepted_species_list <- species_filtered[species_filtered$Accepted == FALSE, ]
+print("Not Accepted Species List:")
+print(not_accepted_species_list)
+
+```
+
+
+
+
+
+```{r}
+#exploratory plotting -- hybrids_filtered
+#fix the functions
+
+#Most common Registrants--------------------------------------
+registrant_counts <- table(hybrids_filtered$Registrant)
+df_registrant <- as.data.frame(registrant_counts)
+colnames(df_registrant) <- c("Registrant", "Count")
+
+#filter for only common registrants
+df_registrant_filtered <- df_registrant[df_registrant$Count >= 100, ]
+
+ggplot(df_registrant_filtered, aes(x = reorder(Registrant, -Count), y = Count, fill = Registrant)) +
+  geom_bar(stat = "identity") +
+  coord_flip() + # Horizontal bars for readability
+  labs(title = "Most Common Registrants", x = "Registrant", y = "Number of hybrids_filtered") +
+  theme_minimal()
+
+# Count the number of hybrids per registrant
+registrant_counts <- hybrids_filtered %>%
+  group_by(Registrant) %>%
+  summarise(Total_Hybrids = n())
+
+# Categorize registrants
+registrant_counts <- registrant_counts %>%
+  mutate(Category = ifelse(Total_Hybrids < 5, "Less than 5 hybrids", "5 or more hybrids"))
+
+# Count the number of registrants in each category
+category_counts <- registrant_counts %>%
+  count(Category) %>%
+  mutate(Percentage = n / sum(n) * 100)
+
+# Pie chart
+ggplot(category_counts, aes(x = "", y = Percentage, fill = Category)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  labs(title = "Percentage of Registrants with Less than 5 Hybrids") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), axis.ticks = element_blank(), panel.grid = element_blank()) +
+  scale_fill_manual(values = c("Less than 5 hybrids" = "red", "5 or more hybrids" = "blue"))
+
+
+
+# Hybrid Number versus Year-----------------------------------------------------
+year_counts <- table(hybrids_filtered$Year)
+df_years <- as.data.frame(year_counts)
+colnames(df_years) <- c("Year", "Count")
+df_years$Year <- as.numeric(as.character(df_years$Year))
+
+ggplot(df_years, aes(x = as.numeric(Year), y = Count, group = 1)) +
+  geom_line(color = "blue", size = 1) +   # Line plot
+  geom_point(color = "red", size = 2) +   # Points on the line
+  labs(title = "Number of Hybrids per Year", x = "Year", y = "Number of Hybrids") +
+  theme_minimal() +
+  # Show only every ten years (starting at 1850) for readability 
+  scale_x_continuous(breaks = seq(1850, max(df_years$Year, na.rm = TRUE), by = 10))
+
+#add trendline??
+
+
+#Distribution of hybrids_filtered vs time---------------------------------------
+ggplot(hybrids_filtered, aes(x = Year)) +
+  geom_histogram(binwidth = 15, fill = "blue", color = "black") +  # Adjust binwidth for granularity
+  labs(title = "Distribution of hybrids_filtered Over Time", x = "Year", y = "Count") +
+  theme_minimal()
+
+
+#Ancestor number vs descendent number-------------------------------------------
+ggplot(hybrids_filtered, aes(x = Ancestors, y = Descendants)) +
+  geom_point(alpha = 0.6, color = "blue") +  
+  geom_smooth(method = "lm", color = "red", se = FALSE) +  # Add trend line
+  labs(title = "Ancestors vs. Descendants", x = "Number of Ancestors", y = "Number of Descendants") +
+  theme_minimal()
+
+#Proportion with images avail---------------------------------------------------
+df_image <- data.frame(
+  Category = c("With Images", "No Images"),
+  Count = c(sum(!is.na(hybrids_filtered$Images)), sum(is.na(hybrids_filtered$Images)))
+)
+
+ggplot(df_image, aes(x = "", y = Count, fill = Category)) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(title = "Proportion of hybrids_filtered with Images")
+
+
+
+#Ancestry count vs. Year----------------------------------------------------
+ggplot(hybrids_filtered, aes(x = as.factor(Year), y = Ancestors)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Number of Ancestors by Year", x = "Year", y = "Number of Ancestors") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  # Show only every ten years (starting at 1850) for readability 
+  scale_x_discrete(breaks = seq(1850, max(hybrids_filtered$Year, na.rm = TRUE), by = 10))
+
+
+#Distinguish Hybrid Type-----------------------------------------------------
+
+# Function to classify hybrids_filtered based on capitalization of the second word
+classify_hybrid <- function(parentage) {
+  parents <- unlist(strsplit(as.character(parentage), " × "))  # Split parents
+  
+  is_species <- function(name) {
+    words <- unlist(strsplit(name, " "))  # Split into words
+    return(length(words) > 1 && grepl("^[a-z]", words[2]))  # Check if second word is lowercase
+  }
+  
+  # Check if both parents are species
+  if (all(sapply(parents, is_species))) {
+    return("Primary Hybrid")
+  } else {
+    return("Complex Hybrid")
+  }
+}
+
+# Apply classification to the dataset
+hybrids_filtered$HybridType <- sapply(hybrids_filtered$Parentage, classify_hybrid)
+
+#bar chart primary vs complex hybrids_filtered 
+ggplot(hybrids_filtered, aes(x = hybrids_filtered$HybridType, fill = hybrids_filtered$HybridType)) +
+  geom_bar() +
+  labs(title = "Distribution of Primary vs. Complex hybrids_filtered", x = "Hybrid Type", y = "Count") +
+  theme_minimal()
+
+#hybrid type year by year ------------------------------------------------------
+ggplot(hybrids_filtered, aes(x = hybrids_filtered$Year, fill = hybrids_filtered$HybridType)) +
+  geom_bar(position = "fill") +  # Normalized by year
+  labs(title = "Proportion of Primary vs. Complex hybrids_filtered Over Time", x = "Year", y = "Proportion") +
+  theme_minimal()
+
+
+# Count hybrids_filtered by year and type
+df_hybrid_trend <- as.data.frame(table(hybrids_filtered$Year, hybrids_filtered$HybridType))
+colnames(df_hybrid_trend) <- c("Year", "HybridType", "Count")
+df_hybrid_trend$Year <- as.numeric(as.character(df_hybrid_trend$Year))
+
+# Plot trend count hybrid type over time
+ggplot(df_hybrid_trend, aes(x = Year, y = Count, color = HybridType, group = HybridType)) +
+  geom_line(size = 1) +
+  geom_point() +
+  labs(title = "Trend of Primary vs. Complex hybrids_filtered Over Time", x = "Year", y = "Count") +
+  theme_minimal()
+
+classify_hybrid <- function(parentage) {
+  parents <- unlist(strsplit(as.character(parentage), " × "))  # Split parents
+  
+  is_hybrid <- function(name) {
+    words <- unlist(strsplit(name, " "))  # Split name into words
+    if (length(words) < 2) return(FALSE)  # Ensure there are at least two words
+    return(grepl("^[A-Z]", words[2]))  # Check if the second word is capitalized
+  }
+  
+  # Check classification based on capitalization
+  if (all(sapply(parents, function(x) !is_hybrid(x)))) {
+    return("Primary Hybrid")
+  } else if (all(sapply(parents, function(x) is_hybrid(x)))) {
+    return("Highly Complex Hybrid")
+  } else {
+    return("Complex Hybrid")
+  }
+}
+
+
+# Apply classification to the dataset
+hybrids_filtered$HybridType <- sapply(hybrids_filtered$Parentage, classify_hybrid)
+
+# Bar chart primary vs complex vs highly complex
+ggplot(hybrids_filtered, aes(x = HybridType, fill = HybridType)) +
+  geom_bar() +
+  labs(title = "Distribution of Primary vs. Complex vs. Highly Complex hybrids_filtered", x = "Hybrid Type", y = "Count") +
+  theme_minimal()
+
+# Hybrid type year by year
+ggplot(hybrids_filtered, aes(x = Year, fill = HybridType)) +
+  geom_bar(position = "fill") +  # Normalized by year
+  labs(title = "Proportion of Primary vs. Complex vs. Highly Complex hybrids_filtered Over Time", x = "Year", y = "Proportion") +
+  theme_minimal()
+
+# Count hybrids by year and type
+df_hybrid_trend <- as.data.frame(table(hybrids_filtered$Year, hybrids_filtered$HybridType))
+colnames(df_hybrid_trend) <- c("Year", "HybridType", "Count")
+df_hybrid_trend$Year <- as.numeric(as.character(df_hybrid_trend$Year))
+
+# Plot trend count hybrid type over time
+ggplot(df_hybrid_trend, aes(x = Year, y = Count, color = HybridType, group = HybridType)) +
+  geom_line(size = 1) +
+  geom_point() +
+  labs(title = "Trend of Primary vs. Complex vs. Highly Complex hybrids_filtered Over Time", x = "Year", y = "Count") +
+  theme_minimal()
+
+
+# Create a data frame for the corsage era rectangle
+corsage_era <- data.frame(
+  xmin = 1920,
+  xmax = 1950,
+  ymin = -Inf,
+  ymax = Inf,
+  era = "Cattleya Corsage Era"
+)
+
+ggplot() +
+  # Draw the corsage era shaded background with legend
+  geom_rect(data = corsage_era, 
+            aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = era),
+            alpha = 0.2, inherit.aes = FALSE) +
+  # Plot the hybrid trend lines
+  geom_line(data = df_hybrid_trend, 
+            aes(x = Year, y = Count, color = HybridType, group = HybridType), size = 1) +
+  geom_point(data = df_hybrid_trend, 
+             aes(x = Year, y = Count, color = HybridType)) +
+  # Custom fill scale for the corsage era
+  scale_fill_manual(name = "", values = c("Cattleya Corsage Era" = "purple")) +
+  labs(title = "Hybridization Trends Over Time", x = "Year", y = "Count") +
+  theme_minimal() +
+  # Make sure both legends show up
+  guides(fill = guide_legend(override.aes = list(alpha = 0.2)))
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+#exploratory plotting ---- species_filtered ------------ 
+#need to deal with species_filtered_filtered lacking subgeneric rank
+#fix these and change to species_filtered filtered
+
+
+
+#Photo # vs Descendent #-------------------
+ggplot(species_filtered, aes(x = species_filtered$X..Descendants, y = species_filtered$X..Photos)) +
+  geom_point() +
+  labs(title = "Number of Descendants vs. Number of Photos",
+       x = "Number of Descendants",
+       y = "Number of Photos") +
+  theme_minimal()
+
+#Year vs Descendent #----------------------
+ggplot(species_filtered, aes(x = species_filtered$Year, y = species_filtered$X..Descendants)) +
+  geom_point() +
+  labs(title = "Year vs. Number of Descendants",
+       x = "Year",
+       y = "Number of Descendants") +
+  theme_minimal()
+
+#Descendent number by subgenera--------------------------------------------
+ggplot(species_filtered, aes(x = species_filtered$Subgeneric.Ranks, y = species_filtered$X..Descendants)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Number of Descendants by Subgeneric Rank",
+       x = "Subgeneric Rank",
+       y = "Number of Descendants") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme_minimal()
+
+#photo num by subgenera
+ggplot(species_filtered, aes(x = species_filtered$Subgeneric.Ranks, y = species_filtered$X..Photos)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Number of Photos by Subgeneric Rank",
+       x = "Subgeneric Rank",
+       y = "Number of Photos") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme_minimal()
+
+#number of descendents over time -- slightly misinformative as year isnt great for trends here
+ggplot(species_filtered, aes(x = species_filtered$Year, y = species_filtered$X..Descendants)) +
+  geom_line(stat = "summary", fun = "mean") +
+  labs(title = "Trend of Number of Descendants Over Time",
+       x = "Year",
+       y = "Number of Descendants") +
+  theme_minimal()
+
+#subgeneric rank versus # descendents --> examine subgeneric ranks more closely
+ggplot(species_filtered, aes(x = species_filtered$Subgeneric.Ranks, y = species_filtered$X..Descendants)) +
+  geom_boxplot() +
+  labs(title = "Box Plot of Number of Descendants by Subgeneric Rank",
+       x = "Subgeneric Rank",
+       y = "Number of Descendants") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme_minimal()
+
+#Pi chart of species descendents------------------------------------------
+
+# Remove NA values in X..Descendants
+species_filtered <- species_filtered %>% 
+  filter(!is.na(X..Descendants))
+
+# Calculate total number of descendants
+total_descendants <- sum(species_filtered$X..Descendants)
+
+# Calculate percentage of descendants for each species
+species_filtered <- species_filtered %>% 
+  mutate(Percentage = (X..Descendants / total_descendants) * 100)
+
+# Sort species by percentage of descendants in descending order
+species_filtered <- species_filtered %>% 
+  arrange(desc(Percentage))
+
+# Select top 10 species or fewer if there are less than 10
+top_species <- head(species_filtered, 10)
+
+# Combine remaining species into an "Other" category
+other_percentage <- 100 - sum(top_species$Percentage)
+other_data <- data.frame(Binomial = "Other", Percentage = other_percentage)
+
+# Combine top species and other category
+final_data <- bind_rows(top_species, other_data)
+
+# Create a pie chart
+ggplot(final_data, aes(x = "", y = Percentage, fill = Binomial)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  labs(title = "Top Species by Percentage of Descendants",
+       fill = "Species") +
+  scale_fill_manual(values = c(hcl.colors(nrow(final_data) - 1, "Teal"), "grey")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), 
+            color = "white", 
+            size = 3.5)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r}
+#phylogenetic tree plotting
+library(ape)
+library(ggtree)
+library(tidyverse)
+
+tree <- read.tree("../data/subtree-ottol-819061-Cattleya.tre")
+
+tree$tip.label <- gsub("_", " ", tree$tip.label)  # Convert underscores to spaces if needed
+
+tree_df <- fortify(tree)  # Convert tree to data frame
+
+# Merge tree structure with species data
+merged_data <- tree_df %>%
+  left_join(species, by = c("label" = "Binomial"))
+
+ggtree(tree) +
+  geom_tiplab() + 
+  geom_point2(aes(subset = !is.na(X..Descendants), color = X..Descendants, size = X..Photos),
+              data = merged_data) +
+  scale_color_gradient(low = "blue", high = "red") +
+  theme_minimal()
+
+##needs adjusted with different more accurate tree and smaller tree
+
+```
+
+
+
+
+```{r} 
+#########CODE FOR BIOINFORMATICS FIGURES
+# Count hybrids by year and type
+df_hybrid_trend <- as.data.frame(table(hybrids_filtered$Year, hybrids_filtered$HybridType))
+colnames(df_hybrid_trend) <- c("Year", "HybridType", "Count")
+df_hybrid_trend$Year <- as.numeric(as.character(df_hybrid_trend$Year))
+
+
+
+
+# Plot trend count hybrid type over time
+ggplot(df_hybrid_trend, aes(x = Year, y = Count, color = HybridType, group = HybridType)) +
+  geom_line(size = 1) +
+  geom_point() +
+  labs(title = "Hybridization Trends Over Time", x = "Year", y = "Count") +
+  theme_minimal()
+
+
+
+
+# Create a data frame for the corsage era rectangle
+corsage_era <- data.frame(
+  xmin = 1920,
+  xmax = 1950,
+  ymin = -Inf,
+  ymax = Inf,
+  era = "Cattleya Corsage Era"
+)
+
+ggplot() +
+  # Draw the corsage era shaded background with legend
+  geom_rect(data = corsage_era, 
+            aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = era),
+            alpha = 0.2, inherit.aes = FALSE) +
+  # Plot the hybrid trend lines
+  geom_line(data = df_hybrid_trend, 
+            aes(x = Year, y = Count, color = HybridType, group = HybridType), size = 1) +
+  geom_point(data = df_hybrid_trend, 
+             aes(x = Year, y = Count, color = HybridType)) +
+  # Custom fill scale for the corsage era
+  scale_fill_manual(name = "", values = c("Cattleya Corsage Era" = "purple")) +
+  labs(title = "Hybridization Trends Over Time", x = "Year", y = "Count") +
+  theme_minimal() +
+  # Make sure both legends show up
+  guides(fill = guide_legend(override.aes = list(alpha = 0.2)))
+
+# Map labels safely
+df_hybrid_trend$HybridTypeLabel <- dplyr::recode(df_hybrid_trend$HybridType,
+  "Primary Hybrid" = "Primary (species × species)",
+  "Complex Hybrid" = "Complex (hybrid × species)",
+  "Highly Complex Hybrid" = "Highly Complex (hybrid × hybrid)"
+)
+
+
+# Plot using the new label column for the legend
+ggplot(df_hybrid_trend, aes(x = Year, y = Count, color = HybridTypeLabel, group = HybridTypeLabel)) +
+  geom_line(size = 1) +
+  geom_point() +
+  labs(
+    title = "Hybridization Trends Over Time",
+    x = "Year", y = "Count",
+    color = "Hybrid Type"
+  ) +
+  theme_minimal()
+
+# Define Corsage Era
+corsage_era <- data.frame(
+  xmin = 1920,
+  xmax = 1950,
+  ymin = -Inf,
+  ymax = Inf,
+  era = "Cattleya Corsage Era"
+)
+
+# Map labels safely and directly in the plotting dataframe
+df_hybrid_trend <- df_hybrid_trend %>%
+  mutate(HybridTypeLabel = recode(HybridType,
+    "Primary Hybrid" = "Primary (species × species)",
+    "Complex Hybrid" = "Complex (hybrid × species)",
+    "Highly Complex Hybrid" = "Highly Complex (hybrid × hybrid)"
+  ))
+
+# Combined Plot
+ggplot() +
+  # Shaded corsage era
+  geom_rect(data = corsage_era, 
+            aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = era),
+            alpha = 0.2, inherit.aes = FALSE) +
+  
+  # Hybrid trend lines and points
+  geom_line(data = df_hybrid_trend, 
+            aes(x = Year, y = Count, color = HybridTypeLabel), size = 1) +
+  geom_point(data = df_hybrid_trend, 
+             aes(x = Year, y = Count, color = HybridTypeLabel), size = 1.5) +
+
+  # Custom fill and color scales
+  scale_fill_manual(name = NULL, values = c("Cattleya Corsage Era" = "purple")) +
+
+  labs(
+    title = "Hybridization Trends Over Time",
+    x = "Year",
+    y = "Count",
+    color = "Hybrid Type"
+  ) +
+
+  theme_minimal() +
+
+  # Ensure both legends appear clearly
+  guides(
+    fill = guide_legend(override.aes = list(alpha = 0.2)),
+    color = guide_legend(override.aes = list(size = 2))
+  )
+
+
+
+
+
+
+
+
+
+
+
+
+
+year_counts <- table(hybrids_filtered$Year)
+df_years <- as.data.frame(year_counts)
+colnames(df_years) <- c("Year", "Count")
+df_years$Year <- as.numeric(as.character(df_years$Year))
+
+ggplot(df_years, aes(x = as.numeric(Year), y = Count, group = 1)) +
+  geom_line(color = "blue", size = 1) +   
+  geom_point(color = "red", size = 2) + 
+  #geom_smooth(method = "loess", se = FALSE,
+  #            color = "black", linetype = "dashed") +
+  labs(title = "Number of Cattleya Hybrids per Year", x = "Year", y = "Number of Hybrids") +
+  theme_minimal() +
+  # Show only every ten years (starting at 1850) for readability 
+  scale_x_continuous(breaks = seq(1850, max(df_years$Year, na.rm = TRUE), by = 10))
+ #does it need a trendline?
+
+df_avg_5years <- df_years %>%
+  mutate(Year = as.numeric(Year)) %>%
+  mutate(Year_Group = Year - (Year %% 5)) %>% # groups by 5-year intervals
+  group_by(Year_Group) %>%
+  summarize(Avg_Count = mean(Count, na.rm = TRUE))
+
+ggplot(df_avg_5years, aes(x = Year_Group, y = Avg_Count, group = 1)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "red", size = 2) +
+  #geom_smooth(method = "lm", se = FALSE, color = "black", linetype = #"dashed") +
+  labs(title = "Average Number of Cattleya Hybrids per 5-Year Interval",
+       x = "Year (Grouped by 5-Year Intervals)",
+       y = "Average Number of Hybrids") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(1850, max(df_avg_5years$Year_Group, na.rm = TRUE), by = 10))
+
+
+
+
+
+df_clean <- hybrids_filtered %>%
+  filter(!is.na(Year), !is.na(Ancestors),
+         is.finite(Year), is.finite(Ancestors))
+
+
+ggplot(df_clean, aes(x = as.factor(Year), y = Ancestors)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Number of Ancestors by Year", x = "Year", y = "Number of Ancestors") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  # Show only every ten years (starting at 1850) for readability 
+  scale_x_discrete(breaks = seq(1850, max(hybrids_filtered$Year, na.rm = TRUE), by = 10))
+
+
+ggplot(df_clean, aes(x = Year, y = Ancestors)) +
+  geom_boxplot(aes(group = Year), fill = "lightblue") +
+  geom_smooth(method = "loess", se = FALSE, color = "red", linetype = "dashed") +
+  labs(title = "Number of Ancestors by Year",
+       x = "Year", y = "Number of Ancestors") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(1850, max(hybrids_filtered$Year, na.rm = TRUE), by = 10))
+
+
+
+
+#possibly VV
+
+library(ggridges)
+
+hybrids_filtered %>%
+  filter(!is.na(Year), !is.na(Ancestors)) %>%
+  mutate(Decade = floor(Year / 10) * 10) %>%
+  ggplot(aes(x = Ancestors, y = factor(Decade), fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  labs(title = "Distribution of Ancestor Counts in Hybrids by Decade",
+       x = "Number of Ancestors", y = "Decade")
+
+
+
+
+```
+
+
+
+```{r}
+#testing
+
+library(ggrepel)
+
+hybrids_filtered <- hybrids_filtered %>%
+  mutate(Descendants = ifelse(is.na(Descendants), 0, Descendants))
+
+
+hybrids_filtered %>%
+  filter(!is.na(Descendants)) %>%
+  ggplot(aes(x = Descendants + 1)) +
+  geom_histogram(bins = 50) +
+  scale_x_log10() +
+  labs(title = "Distribution of Descendant Counts (with 0s included)",
+       x = "Number of Descendants (+1, log scale)", y = "Frequency")
+
+
+hybrids_filtered %>%
+  filter(!is.na(Descendants)) %>%
+  ggplot(aes(x = Descendants)) +
+  geom_histogram(binwidth = 1) +
+  xlim(0, 20) +  # Optional: zoom into the low end
+  labs(title = "Descendant Count Distribution (Linear Scale)",
+       x = "Number of Descendants", y = "Frequency")
+
+
+
+hybrids_filtered %>%
+  mutate(desc_bin = case_when(
+    Descendants == 0 ~ "0",
+    Descendants <= 1 ~ "1",
+    Descendants <= 5 ~ "2–5",
+    Descendants <= 20 ~ "6–20",
+    Descendants <= 100 ~ "21–100",
+    TRUE ~ ">100"
+  ), 
+  desc_bin = factor(desc_bin, levels = c("0", "1", "2–5", "6–20", "21–100", ">100"))) %>%
+  count(desc_bin) %>%
+  ggplot(aes(x = desc_bin, y = n)) +
+  geom_col() +
+  labs(title = "Binned Distribution of Hybrid Descendant Counts",
+       x = "Descendant Count Bin", y = "Number of Hybrids")
+
+
+
+hybrids_filtered %>%
+  filter(!is.na(Year), !is.na(Descendants)) %>%
+  mutate(descendants_per_year = Descendants / (2025 - Year + 1)) %>%
+  group_by(Year) %>%
+  summarize(mean_rate = mean(descendants_per_year)) %>%
+  ggplot(aes(x = Year, y = mean_rate)) +
+  geom_line() +
+  geom_smooth(method = "loess") +
+  labs(title = "Average Hybrid Influence Rate Over Time",
+       x = "Year", y = "Descendants Per Year Since Creation")
+
+
+hybrids_filtered %>%
+  filter(!is.na(Year), !is.na(Descendants)) %>%
+  mutate(used_as_parent = Descendants > 0) %>%
+  group_by(Year) %>%
+  summarize(prop_reused = mean(used_as_parent)) %>%
+  ggplot(aes(x = Year, y = prop_reused)) +
+  geom_line() +
+  geom_smooth(method = "loess") +
+  labs(title = "Proportion of Hybrids Reused in Breeding",
+       x = "Year of Hybrid Creation", y = "Fraction with Descendants")
+
+
+hybrids_filtered %>%
+  filter(!is.na(Year), !is.na(Ancestors)) %>%
+  mutate(
+    Period = floor(Year / 20) * 20,
+    bin = case_when(
+      Ancestors <= 5 ~ "≤5",
+      Ancestors <= 10 ~ "6–10",
+      Ancestors <= 20 ~ "11–20",
+      Ancestors <= 40 ~ "21–40",
+      TRUE ~ ">40"
+    ),
+    bin = factor(bin, levels = c("≤5", "6–10", "11–20", "21–40", ">40"))
+  ) %>%
+  count(Period, bin) %>%
+  ggplot(aes(x = bin, y = n)) +
+  geom_col() +
+  facet_wrap(~ Period, scales = "fixed") +  # ✅ fixed y-scale
+  labs(title = "Hybrid Ancestor Count Distribution by 20-Year Period",
+       x = "Ancestor Count Bin", y = "# of Hybrids")
+
+hybrids_filtered %>%
+  filter(!is.na(Year), !is.na(Descendants)) %>%
+  mutate(
+    Period = floor(Year / 20) * 20,
+    bin = case_when(
+      Descendants == 0 ~ "0",
+      Descendants == 1 ~ "1",
+      Descendants <= 5 ~ "2–5",
+      Descendants <= 20 ~ "6–20",
+      Descendants <= 100 ~ "21–100",
+      TRUE ~ ">100"
+    ),
+    bin = factor(bin, levels = c("0", "1", "2–5", "6–20", "21–100", ">100"))
+  ) %>%
+  count(Period, bin) %>%
+  ggplot(aes(x = bin, y = n)) +
+  geom_col() +
+  facet_wrap(~ Period, scales = "fixed") +  # ✅ fixed y-scale
+  labs(title = "Hybrid Descendant Count Distribution by 20-Year Period",
+       x = "Descendant Count Bin", y = "Number of Hybrids")
+
+
+
+hybrids_filtered %>%
+  filter(!is.na(Year), !is.na(Descendants)) %>%
+  mutate(used_as_parent = Descendants > 0) %>%
+  group_by(Year) %>%
+  summarize(prop_reused = mean(used_as_parent)) %>%
+  ggplot(aes(x = Year, y = prop_reused)) +
+  geom_line() +
+  geom_smooth(method = "loess") +
+  labs(title = "Proportion of Hybrids Reused in Breeding",
+       x = "Year of Hybrid Creation", y = "Fraction with Descendants")
+
+
+
+hybrids_filtered %>%
+  filter(!is.na(Year), !is.na(Ancestors)) %>%
+  mutate(
+    Period = floor(Year / 20) * 20,
+    bin = case_when(
+      Ancestors <= 5 ~ "≤5",
+      Ancestors <= 10 ~ "6–10",
+      Ancestors <= 20 ~ "11–20",
+      Ancestors <= 40 ~ "21–40",
+      TRUE ~ ">40"
+    ),
+    bin = factor(bin, levels = c("≤5", "6–10", "11–20", "21–40", ">40"))
+  ) %>%
+  count(Period, bin) %>%
+  ggplot(aes(x = bin, y = n)) +
+  geom_col() +
+  facet_wrap(~ Period, scales = "fixed") +  # ✅ fixed y-scale
+  labs(title = "Hybrid Ancestor Count Distribution by 20-Year Period",
+       x = "Ancestor Count Bin", y = "# of Hybrids")
+
+
+
+
+
+
+
+
+```
+
+
+
+```{r}
+# Step 1: Clean subset
+df <- species_filtered[!is.na(species_filtered$Subgeneric.Ranks) & !is.na(species_filtered$`X..Descendants`), ]
+
+# Step 2: Reset row indices (CRUCIAL)
+df <- df[ , ]  # This drops old row names silently and keeps alignment
+
+# Step 3: Extract last subgenus
+df$LastSubgenus <- sapply(
+  strsplit(df$Subgeneric.Ranks, "\n"),
+  function(x) {
+    x <- x[x != ""]           # remove empty strings
+    if (length(x) == 0) return(NA_character_)  # handle missing
+    tail(x, 1)                # get the last one
+  }
+)
+df$LastSubgenus <- unlist(df$LastSubgenus)  # <- This line solves the list issue
+
+# Step 4: Remove blank subgenus rows
+df <- df[df$LastSubgenus != "", ]
+
+# Step 5: Check again
+stopifnot(length(df$LastSubgenus) == length(df$`X..Descendants`))
+
+# Step 6: Run tapply
+subgenus_hybrid_counts <- tapply(df$`X..Descendants`, df$LastSubgenus, sum, na.rm = TRUE)
+
+
+library(ape)
+library(phytools)
+
+tree <- read.tree("../data/cattleya_subgeneric.nwk")
+
+# Remove the "Stellata" entry from your hybrid count vector
+subgenus_hybrid_counts <- subgenus_hybrid_counts[names(subgenus_hybrid_counts) != "Stellata"]
+
+# Re-match tree and trait data
+common_subgenera <- intersect(tree$tip.label, names(subgenus_hybrid_counts))
+tree_pruned <- drop.tip(tree, setdiff(tree$tip.label, common_subgenera))
+hybrid_counts_pruned <- subgenus_hybrid_counts[common_subgenera]
+tree_pruned <- compute.brlen(tree_pruned)
+
+
+# Run Blomberg’s K
+K_result <- phylosig(tree_pruned, hybrid_counts_pruned, method = "K", test = TRUE)
+print(K_result)
+
+# Run Pagel’s Lambda
+lambda_result <- phylosig(tree_pruned, hybrid_counts_pruned, method = "lambda", test = TRUE)
+print(lambda_result)
+
+# Normalize hybrid counts to a color scale
+library(phytools)
+
+# Create a color palette (e.g., yellow to red)
+colors <- setNames(heat.colors(length(hybrid_counts_pruned))[rank(hybrid_counts_pruned)],
+                   names(hybrid_counts_pruned))
+
+# Save the plot to an image file
+png("cattleya_hybrid_tree.png", width = 1000, height = 800)
+
+# Plot the pruned tree
+plot(tree_pruned, cex = 0.8, font = 3)
+
+# Add colored dots at the tips using your heatmap-style colors
+tiplabels(pch = 21,
+          bg = colors[tree_pruned$tip.label],
+          cex = 1.5)
+
+# Finish the image
+dev.off()
+
+
+
+library(phytools)
+
+# Assign artificial branch lengths (if not already done)
+tree_pruned$edge.length <- rep(1, nrow(tree_pruned$edge))
+
+# Build the trait map object
+contmap_obj <- contMap(tree_pruned, hybrid_counts_pruned, plot = FALSE)
+
+# Make the color gradient clearer
+contmap_obj <- setMap(contmap_obj, heat.colors(100))
+
+# Save to file
+png("cattleya_contmap_hybridization.png", width = 1000, height = 800)
+
+plot(contmap_obj, fsize = 0.8, legend = 0.7, outline = FALSE)
+
+# Add hybrid count labels to the tips
+tiplabels(
+  text = hybrid_counts_pruned[tree_pruned$tip.label],
+  adj = 1.2,               # moves text right of tip
+  frame = "none",          # no box around labels
+  cex = 0.7,               # text size
+  font = 2                 # bold text
+)
+
+
+
+# Plot the trait map (this initializes and renders the whole plot safely)
+#plot(contmap_obj, fsize = 0.8, legend = 0.7, outline = FALSE)
+
+# Close graphics device
+dev.off()
+
+
+
+
+
+
+library(phytools)
+
+# Ensure branch lengths are set
+tree_pruned$edge.length <- rep(1, nrow(tree_pruned$edge))
+
+# Build contMap and apply color map
+contmap_obj <- contMap(tree_pruned, hybrid_counts_pruned, plot = FALSE)
+contmap_obj <- setMap(contmap_obj, heat.colors(100))
+
+# Save to PDF
+pdf("cattleya_hybrid_tree_labeled.pdf", width = 11, height = 8.5)
+
+# Plot the contMap
+plot(contmap_obj, fsize = 0.8, legend = 0.7, outline = FALSE)
+
+# Extract tip coordinates from plot
+coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)
+
+# Use `text()` instead of `tiplabels()`
+text(
+  x = coords$xx[1:length(tree_pruned$tip.label)] + 0.5,
+  y = coords$yy[1:length(tree_pruned$tip.label)],
+  labels = hybrid_counts_pruned[tree_pruned$tip.label],
+  cex = 0.8,
+  font = 2
+)
+
+# Close PDF
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+library(ape)
+
+# Create color scale (based on ranked hybrid counts)
+colors <- setNames(heat.colors(length(hybrid_counts_pruned))[rank(hybrid_counts_pruned)],
+                   names(hybrid_counts_pruned))
+
+# Save to PDF
+pdf("cattleya_hybrid_tree_manual.pdf", width = 11, height = 8.5)
+
+# Plot the tree
+plot(tree_pruned, cex = 0.8, font = 3)
+
+# Get tip coordinates
+tip_coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)
+
+# Plot colored dots at tips
+tiplabels(pch = 21,
+          bg = colors[tree_pruned$tip.label],
+          cex = 1.5)
+
+# Add hybrid count text next to each tip
+text(
+  x = tip_coords$xx[1:length(tree_pruned$tip.label)] + 0.5,
+  y = tip_coords$yy[1:length(tree_pruned$tip.label)],
+  labels = hybrid_counts_pruned[tree_pruned$tip.label],
+  cex = 0.8,
+  font = 2
+)
+
+# Close device
+dev.off()
+
+
+
+
+
+
+# Open a proper Windows graphics window (instead of RStudio's device)
+windows(width = 11, height = 8.5)
+
+# Plot tree
+plot(tree_pruned, cex = 0.8, font = 3)
+
+# Get tip coordinates
+tip_coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)
+
+# Add colored points
+points(
+  x = tip_coords$xx[1:length(tree_pruned$tip.label)],
+  y = tip_coords$yy[1:length(tree_pruned$tip.label)],
+  pch = 21,
+  bg = colors[tree_pruned$tip.label],
+  cex = 2
+)
+
+# Add hybrid count labels
+text(
+  x = tip_coords$xx[1:length(tree_pruned$tip.label)] + 0.5,
+  y = tip_coords$yy[1:length(tree_pruned$tip.label)],
+  labels = hybrid_counts_pruned[tree_pruned$tip.label],
+  cex = 0.8,
+  font = 2
+)
+
+
+```
+
+
+
+
+
+
+
+
+
+```{r}
+library(tidyverse)
+library(caret)
+
+# --- 1. Process Parentage Data --- #
+hybrids_filtered <- hybrids_filtered %>%
+  # Separate Parentage column into ParentA and ParentB with fill = "right"
+  separate(Parentage, into = c("ParentA", "ParentB"), sep = " × ", remove = FALSE, fill = "right") %>%
+  # Remove parentheses and their contents from ParentA and ParentB
+  mutate(ParentA = str_remove(ParentA, " \\([^)]*\\)"),
+         ParentB = str_remove(ParentB, " \\([^)]*\\)")) %>%
+  # Filter out rows where either ParentA or ParentB is missing
+  filter(!is.na(ParentA) & !is.na(ParentB))
+
+
+# Compute parent popularity
+parent_counts <- hybrids_filtered %>%
+  select(ParentA, ParentB) %>%
+  pivot_longer(cols = c("ParentA", "ParentB"), values_to = "Parent") %>%
+  count(Parent, name = "Popularity")
+
+
+# Merge popularity data
+hybrids_filtered <- hybrids_filtered %>%
+  left_join(parent_counts %>% rename(ParentA_Popularity = Popularity), by = c("ParentA" = "Parent")) %>%
+  left_join(parent_counts %>% rename(ParentB_Popularity = Popularity), by = c("ParentB" = "Parent")) %>%
+  mutate(
+    ParentA_Popularity = replace_na(ParentA_Popularity, 1),
+    ParentB_Popularity = replace_na(ParentB_Popularity, 1),
+    Min_Parent_Popularity = pmin(ParentA_Popularity, ParentB_Popularity)
+  ) %>%
+  select(-ParentA_Popularity, -ParentB_Popularity)
+
+
+# --- 2. Compute Species-Based Features --- #
+species_contributions <- hybrids_filtered %>%
+  select(Parentage, ParentA, ParentB) %>%
+  pivot_longer(cols = c("ParentA", "ParentB"), values_to = "Species") %>%
+  left_join(species, by = c("Species" = "Binomial")) %>%
+  mutate(Is_Rare_Species = ifelse(X..Descendants < 10, TRUE, FALSE))
+
+species_contributions <- species_contributions %>%
+  group_by(Parentage, Species) %>%
+  summarise(
+    Total_Descendants = sum(X..Descendants, na.rm = TRUE),
+    Species_Contribution = if_else(sum(Total_Descendants, na.rm = TRUE) == 0, NA_real_, Total_Descendants / sum(Total_Descendants, na.rm = TRUE)),
+    Is_Rare_Species = any(Is_Rare_Species),
+    .groups = "drop"
+  )
+
+# Fix Species1_Contribution to prevent -Inf issues
+species_features <- species_contributions %>%
+  left_join(hybrids_filtered %>% select(Parentage, ParentA, ParentB) %>% distinct(), by = "Parentage") %>%
+  group_by(ParentA, ParentB) %>%
+  summarise(
+    Species1_Contribution = if_else(all(is.na(Species_Contribution)), NA_real_, max(Species_Contribution, na.rm = TRUE)),
+    Species_Diversity = n_distinct(Species),
+    Rare_Species_Contribution = sum(Species_Contribution[Is_Rare_Species], na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Species1_Contribution = if_else(Species1_Contribution == -Inf, NA_real_, Species1_Contribution)
+  )
+
+# Merge species features back into hybrids_filtered
+hybrids_filtered <- hybrids_filtered %>%
+  left_join(species_features, by = c("ParentA", "ParentB"))
+
+# Ensure the column exists after merging
+stopifnot("Species1_Contribution" %in% colnames(hybrids_filtered))
+
+# --- 3. Assign Temporal Feature --- #
+hybrids_filtered <- hybrids_filtered %>%
+  mutate(Decade = floor(Year / 10) * 10)
+
+# --- 4. Generate Unlikely hybrids_filtered --- #
+set.seed(123)
+all_parents <- unique(c(hybrids_filtered$ParentA, hybrids_filtered$ParentB))
+
+candidate_hybrids_filtered <- expand.grid(ParentA = all_parents, ParentB = all_parents) %>%
+  filter(ParentA != ParentB) %>%
+  mutate(Parentage = paste(ParentA, ParentB, sep = " × ")) %>%
+  left_join(species_features, by = c("ParentA", "ParentB")) %>%
+  mutate(
+    Min_Parent_Popularity = pmin(
+      replace_na(parent_counts$Popularity[match(ParentA, parent_counts$Parent)], 1),
+      replace_na(parent_counts$Popularity[match(ParentB, parent_counts$Parent)], 1)
+    ),
+    Hybrid_Type = sample(hybrids_filtered$HybridType, n(), replace = TRUE),
+    Decade = sample(hybrids_filtered$Decade, n(), replace = TRUE)
+  )
+
+# Handle NA before ranking
+candidate_hybrids_filtered <- candidate_hybrids_filtered %>%
+  mutate(
+    Species1_Contribution = replace_na(Species1_Contribution, 0),
+    Species_Diversity = replace_na(Species_Diversity, 0),
+    Rare_Species_Contribution = replace_na(Rare_Species_Contribution, 0)
+  )
+
+# Compute hybrid scores
+candidate_hybrids_filtered <- candidate_hybrids_filtered %>%
+  mutate(
+    Score = rank(Min_Parent_Popularity) + rank(Species1_Contribution) +
+            rank(Species_Diversity) + rank(Rare_Species_Contribution)
+  )
+
+negative_hybrids_filtered <- candidate_hybrids_filtered %>%
+  arrange(Score) %>%
+  slice_head(n = 500) %>%
+  mutate(LikelyMade = 0)
+
+# --- 5. Train the Predictive Model --- #
+hybrids_filtered$LikelyMade <- 1
+
+model_data <- bind_rows(
+  hybrids_filtered %>%
+    select(Parentage, Min_Parent_Popularity, Species1_Contribution, Species_Diversity, Rare_Species_Contribution, HybridType, Decade, LikelyMade),
+  negative_hybrids_filtered %>%
+    rename(HybridType = Hybrid_Type) %>%
+    select(Parentage, Min_Parent_Popularity, Species1_Contribution, Species_Diversity, Rare_Species_Contribution, HybridType, Decade, LikelyMade)
+)
+
+# Ensure no missing values before training
+model_data <- model_data %>%
+  mutate(
+    Min_Parent_Popularity = replace_na(Min_Parent_Popularity, 1),
+    Species1_Contribution = replace_na(Species1_Contribution, 0),
+    Species_Diversity = replace_na(Species_Diversity, 0),
+    Rare_Species_Contribution = replace_na(Rare_Species_Contribution, 0)
+  )
+
+# Final check for NA/NaN/Inf
+stopifnot(!any(is.na(model_data)))
+summary(model_data)
+
+# Split into training and test sets
+set.seed(123)
+train_index <- createDataPartition(model_data$LikelyMade, p = 0.8, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data <- model_data[-train_index, ]
+
+# Train the model
+model <- glm(LikelyMade ~ Min_Parent_Popularity + Species1_Contribution + Species_Diversity + Rare_Species_Contribution + HybridType + Decade, 
+             data = train_data, 
+             family = binomial)
+
+summary(model)
+
+```
+
+
+```{r}
+library(tidyverse)
+library(caret)
+library(vegan)  # For Shannon diversity calculation
+
+# --- 1. Process Parentage Data --- #
+hybrids_filtered <- hybrids_filtered %>%
+  separate(Parentage, into = c("ParentA", "ParentB"), sep = " × ", remove = FALSE)
+
+# Remove rows where ParentA or ParentB is missing
+hybrids_filtered <- hybrids_filtered %>%
+  filter(!is.na(ParentA) & !is.na(ParentB))
+
+# Compute last hybridization year for each parent
+last_hybridization <- hybrids_filtered %>%
+  pivot_longer(cols = c(ParentA, ParentB), values_to = "Parent") %>%
+  group_by(Parent) %>%
+  summarise(Last_Hybrid_Year = max(Year, na.rm = TRUE), .groups = "drop")
+
+# Merge to compute "Time since last hybridization"
+hybrids_filtered <- hybrids_filtered %>%
+  left_join(last_hybridization %>% rename(ParentA_LastHybrid = Last_Hybrid_Year), 
+            by = c("ParentA" = "Parent")) %>%
+  left_join(last_hybridization %>% rename(ParentB_LastHybrid = Last_Hybrid_Year), 
+            by = c("ParentB" = "Parent")) %>%
+  mutate(
+    ParentA_LastHybrid = replace_na(ParentA_LastHybrid, min(Year, na.rm = TRUE)),
+    ParentB_LastHybrid = replace_na(ParentB_LastHybrid, min(Year, na.rm = TRUE)),
+    Time_Since_Last_Hybridization = Year - pmax(ParentA_LastHybrid, ParentB_LastHybrid)
+  ) %>%
+  select(-ParentA_LastHybrid, -ParentB_LastHybrid)
+
+# --- 2. Compute Species-Based Features --- #
+species_contributions <- hybrids_filtered %>%
+  pivot_longer(cols = c("ParentA", "ParentB"), values_to = "Species") %>%
+  left_join(species, by = c("Species" = "Binomial")) %>%
+  mutate(X..Descendants = replace_na(X..Descendants, 0),  # Ensure NA is replaced with 0
+         Rarity_Score = 1 / (X..Descendants + 1))  # Higher score for rare species
+
+# Summarize per hybrid
+species_features <- species_contributions %>%
+  group_by(Parentage) %>%
+  summarise(
+    Weighted_Rarity_Contribution = sum(Rarity_Score, na.rm = TRUE),
+    Species_Diversity = ifelse(n_distinct(Species) > 1, diversity(table(Species), index = "shannon"), 0),
+    Species1_Contribution = ifelse(sum(X..Descendants, na.rm = TRUE) > 0,
+                                   max(X..Descendants, na.rm = TRUE) / sum(X..Descendants, na.rm = TRUE),
+                                   0),
+    .groups = "drop"
+  ) 
+
+# Ensure Species1_Contribution is present
+species_features <- species_features %>%
+  mutate(Species1_Contribution = replace_na(Species1_Contribution, 0))
+
+# Normalize Species1_Contribution
+species_features <- species_features %>%
+  mutate(Species1_Contribution = (Species1_Contribution - min(Species1_Contribution, na.rm = TRUE)) /
+                                   (max(Species1_Contribution, na.rm = TRUE) - min(Species1_Contribution, na.rm = TRUE)))
+
+# Merge into hybrids_filtered
+hybrids_filtered <- hybrids_filtered %>%
+  left_join(species_features, by = "Parentage")
+
+# --- 3. Convert Hybrid Type to Continuous Score --- #
+hybrids_filtered <- hybrids_filtered %>%
+  mutate(Hybrid_Complexity_Score = case_when(
+    HybridType == "Primary" ~ 1,
+    HybridType == "Complex" ~ 2,
+    HybridType == "Highly Complex" ~ 3,
+    TRUE ~ 2  # Default to 2 if unknown (assume it's a mid-level complexity)
+  ))
+
+# --- 4. Generate Unlikely Hybrids --- #
+set.seed(123)
+all_parents <- unique(c(hybrids_filtered$ParentA, hybrids_filtered$ParentB))
+
+candidate_hybrids_filtered <- expand.grid(ParentA = all_parents, ParentB = all_parents) %>%
+  filter(ParentA != ParentB) %>%
+  mutate(Parentage = paste(ParentA, ParentB, sep = " × ")) %>%
+  left_join(species_features, by = "Parentage")
+
+# Ensure missing values are handled
+candidate_hybrids_filtered <- candidate_hybrids_filtered %>%
+  mutate(
+    Time_Since_Last_Hybridization = sample(hybrids_filtered$Time_Since_Last_Hybridization, n(), replace = TRUE),
+    Hybrid_Complexity_Score = sample(hybrids_filtered$Hybrid_Complexity_Score, n(), replace = TRUE),
+    Species1_Contribution = replace_na(Species1_Contribution, 0),
+    Species_Diversity = replace_na(Species_Diversity, 0),
+    Weighted_Rarity_Contribution = replace_na(Weighted_Rarity_Contribution, 0)
+  )
+
+# Compute hybrid scores
+candidate_hybrids_filtered <- candidate_hybrids_filtered %>%
+  mutate(
+    Score = rank(Time_Since_Last_Hybridization) + rank(Species1_Contribution) +
+            rank(Species_Diversity) + rank(Weighted_Rarity_Contribution)
+  )
+
+negative_hybrids_filtered <- candidate_hybrids_filtered %>%
+  arrange(Score) %>%
+  slice_head(n = 500) %>%
+  mutate(LikelyMade = 0)
+
+# Ensure all necessary columns exist in negative_hybrids_filtered
+negative_hybrids_filtered <- negative_hybrids_filtered %>%
+  mutate(
+    Time_Since_Last_Hybridization = replace_na(Time_Since_Last_Hybridization, 0),
+    Hybrid_Complexity_Score = replace_na(Hybrid_Complexity_Score, 2),  # Default to 2
+    Species1_Contribution = replace_na(Species1_Contribution, 0),
+    Species_Diversity = replace_na(Species_Diversity, 0),
+    Weighted_Rarity_Contribution = replace_na(Weighted_Rarity_Contribution, 0)
+  )
+
+# --- 5. Train the Predictive Model --- #
+hybrids_filtered$LikelyMade <- 1
+
+model_data <- bind_rows(
+  hybrids_filtered %>%
+    select(Parentage, Time_Since_Last_Hybridization, Species1_Contribution, 
+           Species_Diversity, Weighted_Rarity_Contribution, Hybrid_Complexity_Score, LikelyMade),
+  negative_hybrids_filtered %>%
+    select(Parentage, Time_Since_Last_Hybridization, Species1_Contribution, 
+           Species_Diversity, Weighted_Rarity_Contribution, Hybrid_Complexity_Score, LikelyMade)
+)
+
+# Check for missing values
+stopifnot(!any(is.na(model_data)))
+
+print("Data processing complete. Model data ready for training.")
+
+
+```
+
+
+
+```{r}
+
+set.seed(42)
+train_index <- createDataPartition(model_data$LikelyMade, p = 0.8, list = FALSE)
+train_data <- model_data[train_index, ]
+test_data <- model_data[-train_index, ]
+
+train_data_balanced <- train_data %>%
+  group_by(LikelyMade) %>%
+  sample_n(min(table(train_data$LikelyMade))) %>%
+  ungroup()
+
+table(train_data$LikelyMade)
+
+install.packages("ROSE")
+library(ROSE)
+
+train_data_balanced <- ROSE(LikelyMade ~ ., data = train_data, seed = 42)$data
+
+
+
+train_data_balanced$LikelyMade <- as.factor(train_data_balanced$LikelyMade)
+test_data$LikelyMade <- as.factor(test_data$LikelyMade)
+
+rf_likely <- randomForest(
+  LikelyMade ~ Time_Since_Last_Hybridization + Species1_Contribution + 
+               Species_Diversity + Weighted_Rarity_Contribution + Hybrid_Complexity_Score,
+  data = train_data_balanced,
+  ntree = 500,
+  mtry = 3,
+  importance = TRUE
+)
+
+
+rf_unlikely <- randomForest(
+  LikelyMade ~ Time_Since_Last_Hybridization + Species1_Contribution + 
+               Species_Diversity + Weighted_Rarity_Contribution + Hybrid_Complexity_Score,
+  data = train_data_balanced,
+  ntree = 500,
+  mtry = 3,
+  importance = TRUE
+)
+
+
+pred_likely <- predict(rf_likely, test_data, type = "prob")[,2]  # Probability for likely hybrids
+pred_unlikely <- predict(rf_unlikely, test_data, type = "prob")[,2]  # Probability for unlikely hybrids
+
+final_predictions <- ifelse(pred_likely > pred_unlikely, 1, 0)
+
+
+final_predictions
+
+conf_matrix <- confusionMatrix(as.factor(final_predictions), as.factor(test_data$LikelyMade))
+print(conf_matrix)
+
+
+```
+
