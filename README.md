@@ -4,7 +4,9 @@ Does the tendency to hybridize cluster on the _Cattleya_ phylogeny, or is it jus
 
 Course project write-up (bioinformatics), May 2025 — Jaret Arnold.
 
-📄 **[Read the full write-up →](writeup.md)** · original submitted `.docx` in [`docs/`](docs/)
+📄 **[Read the full write-up →](writeup.md)** · original submitted `.docx` in [`docs/`](docs/) · corrections in [`ERRATA.md`](ERRATA.md)
+
+> The write-up is reproduced as submitted. A later audit found citation defects in it — two wrong DOIs, a miscited classification paper, and one reference that appears not to exist. Rather than quietly editing the record, they are documented in [`ERRATA.md`](ERRATA.md).
 
 ---
 
@@ -59,6 +61,7 @@ The species-level tree — the one that produced the significant Pagel's λ, Mor
 
 ```
 writeup.md   full write-up, figures and tables inline
+ERRATA.md    defects found in a post-hoc audit of the submitted text
 docs/        original submitted .docx + the earlier research proposal
 figures/     figure panels as PNG (Fig 1-3, Fig S1-S2)
 analysis/    derive_tables.R, figures_from_derived.R, the submitted Rmd,

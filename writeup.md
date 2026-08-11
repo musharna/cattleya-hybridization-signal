@@ -3,6 +3,8 @@
 **Jaret Arnold** — May 2025
 
 > Course write-up, bioinformatics. The text below is the submitted document verbatim; the original `.docx` is in [`docs/`](docs/). Figures are placed at their point of reference, with the original captions where the document supplied them.
+>
+> **Known defects are recorded in [`ERRATA.md`](ERRATA.md) rather than corrected in place**, so this stays a faithful copy of what was submitted. They include two wrong DOIs, a miscited _Cattleya_ classification paper, and one reference that appears not to exist.
 
 ## Abstract
 
