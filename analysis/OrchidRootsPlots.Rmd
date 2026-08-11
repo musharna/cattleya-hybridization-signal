@@ -1,0 +1,409 @@
+---
+title: "Bioinformatics_Plots"
+author: "Jaret Arnold"
+date: "2025-04-20"
+output: html_document
+---
+
+```{r}
+#imports and file load
+library(tidyverse)
+library(ggplot2)
+
+hybrids <- read.csv("../data/orchidroots_cattleya_hybrids.csv")
+species <- read.csv("../data/orchidroots_cattleya_species.csv")
+
+summary(hybrids)
+summary(species)
+
+```
+
+
+```{r}
+#Data Cleaning
+
+# Remove subsp. and var. from Species entries 
+species_filtered <- species[grepl("subsp\\. |\\svar\\.", species$Binomial) == FALSE, ]
+
+
+# Remove any hybrids which are just synonyms 
+hybrids_filtered <- hybrids[!grepl("Synonym of", hybrids$Parentage), ]
+
+# Filter out the year 2025
+hybrids_filtered <- hybrids_filtered[hybrids_filtered$Year != 2025, ]
+
+```
+
+
+```{r}
+################################################################################
+####################################hybrid complexity vs time w/ annotation#####
+# Define Corsage Era
+corsage_era <- data.frame(
+  xmin = 1920,
+  xmax = 1950,
+  ymin = -Inf,
+  ymax = Inf,
+  era = "Cattleya Corsage Era"
+)
+
+# Map labels safely and directly in the plotting dataframe
+df_hybrid_trend <- df_hybrid_trend %>%
+  mutate(HybridTypeLabel = recode(HybridType,
+    "Primary Hybrid" = "Primary (species × species)",
+    "Complex Hybrid" = "Complex (hybrid × species)",
+    "Highly Complex Hybrid" = "Highly Complex (hybrid × hybrid)"
+  ))
+
+# Combined Plot
+ggplot() +
+  # Shaded corsage era
+  geom_rect(data = corsage_era, 
+            aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = era),
+            alpha = 0.2, inherit.aes = FALSE) +
+  
+  # Hybrid trend lines and points
+  geom_line(data = df_hybrid_trend, 
+            aes(x = Year, y = Count, color = HybridTypeLabel), size = 1) +
+  geom_point(data = df_hybrid_trend, 
+             aes(x = Year, y = Count, color = HybridTypeLabel), size = 1.5) +
+
+  # Custom fill and color scales
+  scale_fill_manual(name = NULL, values = c("Cattleya Corsage Era" = "purple")) +
+
+  labs(
+    title = "Hybridization Trends Over Time",
+    x = "Year",
+    y = "Count",
+    color = "Hybrid Type"
+  ) +
+
+  theme_minimal() +
+
+  # Ensure both legends appear clearly
+  guides(
+    fill = guide_legend(override.aes = list(alpha = 0.2)),
+    color = guide_legend(override.aes = list(size = 2))
+  )
+
+#####################################################Year vs Hybrid graph######
+
+year_counts <- table(hybrids_filtered$Year)
+df_years <- as.data.frame(year_counts)
+colnames(df_years) <- c("Year", "Count")
+df_years$Year <- as.numeric(as.character(df_years$Year))
+
+ggplot(df_years, aes(x = as.numeric(Year), y = Count, group = 1)) +
+  geom_line(color = "blue", size = 1) +   
+  geom_point(color = "red", size = 2) + 
+  #geom_smooth(method = "loess", se = FALSE,
+  #            color = "black", linetype = "dashed") +
+  labs(title = "Number of Cattleya Hybrids per Year", x = "Year", y = "Number of Hybrids") +
+  theme_minimal() +
+  # Show only every ten years (starting at 1850) for readability 
+  scale_x_continuous(breaks = seq(1850, max(df_years$Year, na.rm = TRUE), by = 10))
+ #trendline included above for visualization
+
+#########################################################
+#################Ancestor vs Year distrib#################
+
+
+df_clean <- hybrids_filtered %>%
+  filter(!is.na(Year), !is.na(Ancestors),
+         is.finite(Year), is.finite(Ancestors))
+
+
+ggplot(df_clean, aes(x = Year, y = Ancestors)) +
+  geom_boxplot(aes(group = Year), fill = "lightblue") +
+  geom_smooth(method = "loess", se = FALSE, color = "red", linetype = "dashed") +
+  labs(title = "Number of Ancestors by Year",
+       x = "Year", y = "Number of Ancestors") +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(1850, max(hybrids_filtered$Year, na.rm = TRUE), by = 10))
+
+############################hybrids cumulative vs year##########################
+
+hybrids_filtered %>%
+  filter(!is.na(Year)) %>%
+  count(Year) %>%
+  arrange(Year) %>%
+  mutate(cumulative_hybrids = cumsum(n)) %>%
+  ggplot(aes(x = Year, y = cumulative_hybrids)) +
+  geom_line(size = 1.2, color = "steelblue") +
+  geom_point(size = 1.5, color = "steelblue") +
+  labs(title = "Cumulative Number of Registered Hybrids Over Time",
+       x = "Year", y = "Cumulative Hybrid Count") +
+  theme_minimal()
+
+
+
+```
+
+
+##############################################################################
+###########################Test for phylogenetic Signal######################
+##############################################################################
+
+library(ape)
+
+# Open a new plotting window (Windows only)
+windows(width = 11, height = 8.5)
+
+# Set margins
+par(mar = c(5, 4, 4, 12))
+
+# Plot the subgeneric tree
+plot(tree_pruned, cex = 0.8, font = 3, no.margin = TRUE)
+
+#############################################################
+#############################################################
+
+#Cleaning:
+#Stellata comes from a species which is no longer in Cattleya
+species_filtered <- subset(species_filtered, LowestRank != "Stellata")
+valid_tree_tips <- tree$tip.label
+species_filtered <- subset(species_filtered, LowestRank %in% valid_tree_tips)
+
+##############################################################
+
+#Extraction of ranks from variable data
+# Step 1: Extract the lowest subgeneric rank (series or section)
+species_filtered$LowestRank <- sapply(
+  strsplit(species_filtered$Subgeneric.Ranks, "\n"),
+  function(x) tail(x[x != ""], 1)  # Last non-empty entry
+)
+
+# Step 2: Clean up weird or missing entries
+species_filtered$LowestRank[species_filtered$LowestRank == ""] <- NA
+species_filtered$LowestRank <- trimws(species_filtered$LowestRank)
+
+# View lowest rank assignment
+table(species_filtered$LowestRank, useNA = "ifany")
+
+
+# Create a lookup table
+classification_lookup <- data.frame(
+  LowestRank = c("Crispae", "Lawrenceanae", "Sophronitis", "Parviflorae", 
+                 "Hadrolaelia", "Microlaelia", "Cattleyodes", 
+                 "Cattleyella", "Intermediae", "Maximae", "Cattleya"),
+  Subgenus = c(rep("Cattleya", 7), "Cattleyella", "Intermediae", "Maximae", "Cattleya")
+)
+
+species_filtered <- merge(
+  species_filtered,
+  classification_lookup,
+  by = "LowestRank",
+  all.x = TRUE
+)
+
+# Check for unmatched ranks
+unmatched <- species_filtered[is.na(species_filtered$Subgenus), ]
+nrow(unmatched)
+
+############################################################
+# Begin building a tree from polytomies of subgeneric ranks
+
+library(ape)
+
+# Load tree from file
+tree_lowestrank <- read.tree("../data/cattleya_subgeneric.nwk")
+
+# Step 1: Clean species names (no spaces, safe as tip labels)
+species_filtered$SpeciesName <- gsub(" ", "_", species_filtered$Binomial)
+
+# Step 2: Create mapping: rank → species
+rank_to_species <- split(species_filtered$SpeciesName, species_filtered$LowestRank)
+
+
+expanded_tips <- list()
+
+for (rank in names(rank_to_species)) {
+  sp <- rank_to_species[[rank]]
+  
+  if (length(sp) == 1) {
+    # Single species: treat as tip with placeholder tree
+    expanded_tips[[rank]] <- list(edge = matrix(ncol = 2, nrow = 0),
+                                   tip.label = sp,
+                                   Nnode = 0)
+    class(expanded_tips[[rank]]) <- "phylo"
+  } else {
+    # Multiple species: make a polytomy (star tree)
+    expanded_tips[[rank]] <- stree(length(sp), tip.label = sp, type = "star")
+  }
+}
+
+
+# Copy your lowest-rank tree to expand
+tree_species <- tree_lowestrank
+
+# Replace each tip with the corresponding mini tree
+for (i in seq_along(tree_lowestrank$tip.label)) {
+  rank <- tree_lowestrank$tip.label[i]
+  
+  if (rank %in% names(expanded_tips)) {
+    # Expand this tip into species-level subtree
+    tree_species <- bind.tree(tree_species, expanded_tips[[rank]], where = which(tree_species$tip.label == rank))
+  }
+}
+
+# Remove original LowestRank tips from the tree
+tree_species <- drop.tip(tree_species, tree_lowestrank$tip.label)
+
+# Plot species level tree
+plot(tree_species, cex = 0.5)
+
+# Add hybrid counts
+hybrid_counts <- setNames(species_filtered$`X..Descendants`, species_filtered$SpeciesName)
+
+# Match tree to trait data
+matched_species <- intersect(tree_species$tip.label, names(hybrid_counts))
+tree_species <- drop.tip(tree_species, setdiff(tree_species$tip.label, matched_species))
+hybrid_counts <- hybrid_counts[matched_species]
+
+# Visualize
+plot(tree_species, cex = 0.5)
+tiplabels(pch = 21, bg = heat.colors(length(hybrid_counts))[rank(hybrid_counts)], cex = 1.2)
+# Note: red is low value
+
+# Create trait vector: hybrid counts per species
+hybrid_counts <- setNames(
+  species_filtered$`X..Descendants`,
+  species_filtered$SpeciesName
+)
+
+# Match species to tree
+common_species <- intersect(tree_species$tip.label, names(hybrid_counts))
+
+# Prune tree and trait to match
+tree_phylo <- drop.tip(tree_species, setdiff(tree_species$tip.label, common_species))
+hybrid_counts <- hybrid_counts[common_species]
+
+library(phytools)
+
+# Phylogenetic tests need branch lengths
+#all branches = 1
+tree_phylo$edge.length <- rep(1, nrow(tree_phylo$edge))
+
+#grafens method (scaling)
+tree_grafen <- compute.brlen(tree_phylo, method = "Grafen")
+
+# Blomberg’s K on species tree (grafen scaling)
+K_result <- phylosig(tree_grafen, hybrid_counts, method = "K", test = TRUE)
+print(K_result)
+
+# Pagel’s Lambda on species tree (grafen scaling)
+lambda_result <- phylosig(tree_grafen, hybrid_counts, method = "lambda", test = TRUE)
+print(lambda_result)
+
+#Highly significant pagel
+#Low signal for K (not significant)
+
+# Plot tree with grafen method of scaling
+plot(tree_grafen, cex = 0.6)
+
+
+
+####################################################
+
+# Visualize trait distribution across species tree
+
+tree_clean <- tree_species  
+tree_clean <- compute.brlen(tree_clean, method = "Grafen")
+
+# Rebuild abbreviated names
+species_filtered$SpeciesAbbrev <- gsub(" ", "_", gsub("^([A-Za-z])[a-z]+\\s+", "\\1. ", species_filtered$Binomial))
+
+# Trait vector using abbreviated names
+hybrid_counts <- setNames(species_filtered$`X..Descendants`, species_filtered$SpeciesAbbrev)
+
+# Rename tips in the species-level tree
+name_map <- setNames(species_filtered$SpeciesAbbrev, species_filtered$SpeciesName)
+tree_clean$tip.label <- name_map[tree_clean$tip.label]
+
+valid_tips <- intersect(tree_clean$tip.label, names(hybrid_counts))
+tree_clean <- drop.tip(tree_clean, setdiff(tree_clean$tip.label, valid_tips))
+hybrid_counts_clean <- hybrid_counts[tree_clean$tip.label]
+
+# Drop species with NA hybrid counts
+keep <- !is.na(hybrid_counts_clean)
+hybrid_counts_clean <- hybrid_counts_clean[keep]
+tree_clean <- drop.tip(tree_clean, tree_clean$tip.label[!keep])
+
+
+all(tree_clean$tip.label == names(hybrid_counts_clean))  # should be TRUE
+
+library(phytools)
+library(viridis)
+
+
+contmap_obj <- contMap(tree_clean, hybrid_counts_clean, plot = FALSE)
+contmap_obj <- setMap(contmap_obj, viridis(100, option = "D"))
+# Format: par(mar = c(bottom, left, top, right))
+par(mar = c(5, 4, 4, 2))  # Increase top margin from default 4 to 6
+plot(contmap_obj, fsize = 0.6, legend = 0.7, outline = FALSE)
+
+
+#title 
+text(
+  x = mean(get("last_plot.phylo", envir = .PlotPhyloEnv)$xx),  # center of x-axis
+  y = max(get("last_plot.phylo", envir = .PlotPhyloEnv)$yy) + 2,  # just above highest tip
+  labels = "Hybridization Counts Across Cattleya Species Tree",
+  font = 2,
+  cex = 1.2
+)
+
+# Extract coordinates of tips from the last plotted tree
+coords <- get("last_plot.phylo", envir = .PlotPhyloEnv)
+
+# Extract x and y coordinates for each tip
+x_tip <- coords$xx[1:length(tree_clean$tip.label)]
+y_tip <- coords$yy[1:length(tree_clean$tip.label)]
+
+# Add the hybrid count numbers slightly to the right of the tips
+text(
+  x = x_tip +0.15,  # adjust spacing as needed
+  y = y_tip,
+  labels = hybrid_counts_clean[tree_clean$tip.label],
+  cex = 0.6,
+  font = 2,
+  adj = 0  # left aligned
+)
+
+
+
+
+#Use log count for better visualization
+
+log_counts <- log1p(hybrid_counts_clean)
+contmap_obj <- contMap(tree_clean, log_counts, plot = FALSE)
+log_counts <- log1p(hybrid_counts_clean)
+names(log_counts) <- names(hybrid_counts_clean)  # ensure names match
+contmap_obj <- contMap(tree_clean, log_counts, plot = FALSE)
+contmap_obj <- setMap(contmap_obj, viridis(100, option = "D"))
+par(mar = c(5, 4, 4, 2))  # bottom, left, top, right
+plot(contmap_obj, fsize = 0.6, legend = 0.7, outline = FALSE)
+
+library(phylosignal)
+library(phylobase)
+
+# Trait vector: must be a named numeric vector
+trait_vec <- hybrid_counts_clean[tree_clean$tip.label]
+
+# Build a data.frame (traits must be in data.frame form)
+trait_df <- data.frame(hybrids = trait_vec)
+rownames(trait_df) <- names(trait_vec)
+
+# Convert to phylo4d object
+tree4d <- phylo4d(tree_clean, trait_df)
+
+# test phylogenetic signal on species tree
+# blombergs K, Morans I, Abouheifs Cmean
+ps <- phyloSignal(tree4d, methods = c("K", "I", "Cmean"), reps = 999)
+
+print(ps)
+
+# K nonsignificant, I and cmean significant (0.001)
+
+
+
+

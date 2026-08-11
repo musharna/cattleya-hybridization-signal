@@ -33,29 +33,37 @@ That contrast is itself the methodological result: collapsing species into subge
 
 ## Reproducing
 
-Figures 1, 2, S1 and S2 regenerate from the derived tables in `data/`, with no access to the raw scrape:
+Everything in this section runs from the derived tables in `data/`, with no access to the raw scrape:
 
 ```r
 # from analysis/
-Rscript figures_from_derived.R
+Rscript figures_from_derived.R    # Figures 1, 2, S1, S2      (ggplot2, dplyr)
+Rscript species_tree_signal.R     # Figure 3 + Table 2 row 2  (ape, phytools, phylosignal, phylobase, viridis)
 ```
 
-Requires `ggplot2` and `dplyr`. Output is written to `figures_regenerated/`.
+Output is written to `figures_regenerated/`.
 
 ### Scope — what is and is not reproducible here
 
-| Output                         | Reproducible | From                                             |
-| ------------------------------ | ------------ | ------------------------------------------------ |
-| Figure 1, 2, S1, S2            | yes          | `figures_from_derived.R` + `data/`               |
-| Table 2, subgeneric-rank row   | yes          | `orchidrootsplotting.Rmd` (needs the raw scrape) |
-| **Figure 3**                   | **no**       | code not preserved                               |
-| **Table 2, species-level row** | **no**       | code not preserved                               |
+| Output                         | Reproducible      | From                                             |
+| ------------------------------ | ----------------- | ------------------------------------------------ |
+| Figure 1, 2, S1, S2            | yes               | `figures_from_derived.R` + `data/`               |
+| Figure 3                       | yes               | `species_tree_signal.R` + `data/`                |
+| Table 2, species-level row     | yes, to ~2 s.f.   | `species_tree_signal.R` + `data/`                |
+| Table 2, subgeneric-rank row   | yes               | `orchidrootsplotting.Rmd` (needs the raw scrape) |
 
-The species-level tree — the one that produced the significant Pagel's λ, Moran's I and Abouheif's C<sub>mean</sub>, and Figure 3 — was built outside the committed notebook, and that code did not survive. `orchidrootsplotting.Rmd` contains no species-tree construction and no Moran's I or Abouheif calls; its two `phylosig` calls run Blomberg's K and Pagel's λ against the _subgeneric_ tree, which is the null row of Table 2. The species-level numbers in the write-up stand as reported, but this repository cannot currently regenerate them.
+The species-level statistics regenerate close to, but not exactly on, the published values
+(K 0.210 vs 0.184; λ 0.337 vs 0.305; Moran's I 0.120 vs 0.13; C<sub>mean</sub> 0.323 vs 0.32).
+All four conclusions are unchanged. The gap is a branch-length effect, not a data difference:
+Abouheif's C<sub>mean</sub> is branch-length invariant and reproduces exactly, which pins the
+species set and topology as identical to the original run, while the three branch-length-dependent
+statistics drift. [`ERRATA.md`](ERRATA.md) sets out the evidence.
 
-`data/species_hybrid_counts.csv` holds the trait vector those tests were run on, and `data/cattleya_subgeneric.nwk` holds the subgeneric topology they were built from, so the analysis is reconstructable by someone willing to rebuild the tree.
+> An earlier version of this README said the code behind Figure 3 and the species-level row
+> had not been preserved. That was wrong and is withdrawn — the code is
+> `analysis/OrchidRootsPlots.Rmd`, recovered from the scraper repository and vendored here.
 
-> **Note on the code:** `orchidrootsplotting.Rmd` is the submitted analysis, unchanged except that its hardcoded Windows input paths were rewritten to relative paths. It reads the raw scrape, which is not distributed here, so it will not run from a clone as-is — it is kept as the record of what was actually submitted. The rendered notebook from the original run is committed as [`analysis/orchidrootsplotting.nb.html`](analysis/orchidrootsplotting.nb.html).
+> **Note on the code:** `orchidrootsplotting.Rmd` and `OrchidRootsPlots.Rmd` are the two submitted analysis files, unchanged except that their hardcoded Windows input paths were rewritten to relative paths. Both read the raw scrape, which is not distributed here, so neither runs from a clone as-is — they are kept as the record of what was actually submitted, and `species_tree_signal.R` is the runnable equivalent of the second one. The rendered notebook from the original run is committed as [`analysis/orchidrootsplotting.nb.html`](analysis/orchidrootsplotting.nb.html).
 
 ## Repository layout
 
@@ -64,8 +72,9 @@ writeup.md   full write-up, figures and tables inline
 ERRATA.md    defects found in a post-hoc audit of the submitted text
 docs/        original submitted .docx + the earlier research proposal
 figures/     figure panels as PNG (Fig 1-3, Fig S1-S2)
-analysis/    derive_tables.R, figures_from_derived.R, the submitted Rmd,
-             and the rendered notebook
+analysis/    derive_tables.R, figures_from_derived.R, species_tree_signal.R,
+             the two submitted Rmds, and the rendered notebook
+scraper/     the Selenium scraper used to collect the source data
 data/        derived tables + the two Newick tree inputs (see data/README.md)
 ```
 
@@ -75,7 +84,7 @@ Derived from a scrape of [orchidroots.com](https://www.orchidroots.com/) taken o
 
 **The raw scrape is not distributed here** — `data/` contains only derived aggregates, carrying no grex names, parentage strings, registrants or source links. The reasoning is in [`data/README.md`](data/README.md); the short version is that copying the register for non-commercial research is well covered, but republishing a substantial part of a UK-maintained database is a different act and an unnecessary one.
 
-The scraper itself lives in a separate repository: [`musharna/OrchidRootsScraper`](https://github.com/musharna/OrchidRootsScraper).
+The scraper used to collect it is vendored here as [`scraper/scraper_v1.0.py`](scraper/) and also lives in its own repository, [`musharna/OrchidRootsScraper`](https://github.com/musharna/OrchidRootsScraper).
 
 ## License
 

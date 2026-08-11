@@ -92,10 +92,59 @@ Evolution_, Oxford University Press.
 
 ## Analysis
 
-### Figure 3 and the species-level row of Table 2 have no surviving code
+### Figure 3 and the species-level row of Table 2 — correction to an earlier claim in this repository
 
-The committed notebook contains no species-level tree construction and no Moran's I or
-Abouheif's C<sub>mean</sub> calls; its two `phylosig` calls run Blomberg's K and Pagel's λ
-against the subgeneric tree, which is the null row of Table 2. The species-level results and
-Figure 3 were produced outside it and that code was not preserved. The reported numbers stand;
-this repository cannot currently regenerate them. See the scope table in the [README](README.md).
+**An earlier version of this repository stated that the code behind Figure 3 and the
+species-level row of Table 2 "was not preserved". That was wrong, and it is withdrawn.**
+
+The code exists. It is `analysis/OrchidRootsPlots.Rmd`, which lived in the separate
+[`OrchidRootsScraper`](https://github.com/musharna/OrchidRootsScraper) repository and is now
+vendored here. It contains the species-level tree construction, Grafen scaling, `phylosig`
+for Blomberg's K and Pagel's λ, `phyloSignal` for Moran's I and Abouheif's C<sub>mean</sub>,
+and the `contMap` call that produces Figure 3.
+
+The claim was made after grepping the wrong repository for the wrong symbols — `bind.tip`
+and `adephylo`, where the actual code uses `bind.tree` and the `phylosignal` package.
+
+`analysis/species_tree_signal.R` now reruns that procedure from the derived tables in `data/`,
+so both outputs regenerate without the raw scrape.
+
+### The regenerated statistics are close to, but not identical to, the published ones
+
+| Statistic                  | Published       | Regenerated     |
+| -------------------------- | --------------- | --------------- |
+| Blomberg's K               | 0.184 (p=0.339) | 0.210 (p=0.286) |
+| Pagel's λ                  | 0.305 (p=2.2e−06) | 0.337 (p=1.3e−06) |
+| Moran's I                  | 0.13 (p=0.001)  | 0.120 (p=0.001) |
+| Abouheif's C<sub>mean</sub> | 0.32 (p=0.001)  | 0.323 (p=0.001) |
+
+Every conclusion is unchanged: K non-significant, λ strongly significant, Moran's I and
+Abouheif's C<sub>mean</sub> significant.
+
+The residual differences are branch-length effects, not data differences:
+
+- Abouheif's C<sub>mean</sub> is invariant to branch lengths. Recomputing it under four
+  different branch-length schemes (all edges = 1, and Grafen at ρ = 0.5, 1, 2) returns
+  0.3233 every time, matching the published 0.32. Since C<sub>mean</sub> depends only on
+  topology, **the species set and tree topology are confirmed identical to the original run.**
+- K, λ and Moran's I all move with branch lengths, and that is exactly where the
+  differences appear.
+
+So the two runs differ only in the branch lengths handed to the tests. The likely cause is a
+version difference in `ape::compute.brlen(method = "Grafen")` or in the node structure left by
+the original's singleton `bind.tree` calls; the package versions used in April 2025 were not
+recorded. The default Grafen scaling that the submitted code specifies is kept as-is —
+tuning ρ until the numbers matched would be fitting the reconstruction to its own target.
+
+Independent confirmation that the underlying data match: the published Figure 3 and the
+regenerated one carry the same 98 tips, the same per-species counts, and the same colour-scale
+range (0.693–10.452).
+
+### One deviation from the submitted code was necessary
+
+The submitted code attached single-species subgeneric ranks with `bind.tree()` on a
+zero-edge `phylo` object. Under ape 5.7.1 that call does not terminate. It is replaced by a
+direct tip rename, which is what the original resolved to — in the original run, binding the
+first singleton left the tip count unchanged, i.e. it substituted the tip rather than adding
+one. The published Figure 3 shows those species (e.g. _C. maxima_) as plain tips, consistent
+with this.
