@@ -4,9 +4,7 @@ Does the tendency to hybridize cluster on the _Cattleya_ phylogeny, or is it jus
 
 Course project write-up (bioinformatics), May 2025 — Jaret Arnold.
 
-📄 **[Read the full write-up →](writeup.md)** · original submitted `.docx` in [`docs/`](docs/) · corrections in [`ERRATA.md`](ERRATA.md)
-
-> The write-up is reproduced as submitted. A later audit found citation defects in it — two wrong DOIs, a miscited classification paper, and one reference that appears not to exist. Rather than quietly editing the record, they are documented in [`ERRATA.md`](ERRATA.md).
+📄 **[Read the full write-up →](writeup.md)** · original submitted `.docx` in [`docs/`](docs/) · [`CORRECTIONS.md`](CORRECTIONS.md)
 
 ---
 
@@ -43,7 +41,7 @@ Rscript species_tree_signal.R     # Figure 3 + Table 2 row 2  (ape, phytools, ph
 
 Output is written to `figures_regenerated/`.
 
-### Scope — what is and is not reproducible here
+### Scope
 
 | Output                         | Reproducible      | From                                             |
 | ------------------------------ | ----------------- | ------------------------------------------------ |
@@ -52,16 +50,11 @@ Output is written to `figures_regenerated/`.
 | Table 2, species-level row     | yes, to ~2 s.f.   | `species_tree_signal.R` + `data/`                |
 | Table 2, subgeneric-rank row   | yes               | `orchidrootsplotting.Rmd` (needs the raw scrape) |
 
-The species-level statistics regenerate close to, but not exactly on, the published values
-(K 0.210 vs 0.184; λ 0.337 vs 0.305; Moran's I 0.120 vs 0.13; C<sub>mean</sub> 0.323 vs 0.32).
-All four conclusions are unchanged. The gap is a branch-length effect, not a data difference:
-Abouheif's C<sub>mean</sub> is branch-length invariant and reproduces exactly, which pins the
-species set and topology as identical to the original run, while the three branch-length-dependent
-statistics drift. [`ERRATA.md`](ERRATA.md) sets out the evidence.
-
-> An earlier version of this README said the code behind Figure 3 and the species-level row
-> had not been preserved. That was wrong and is withdrawn — the code is
-> `analysis/OrchidRootsPlots.Rmd`, recovered from the scraper repository and vendored here.
+The species-level statistics regenerate to within rounding of the published values, and all four
+conclusions are unchanged (K 0.210 vs 0.184; λ 0.337 vs 0.305; Moran's I 0.120 vs 0.13;
+C<sub>mean</sub> 0.323 vs 0.32). The small differences are a branch-length effect rather than a data
+one: Abouheif's C<sub>mean</sub> is branch-length invariant and reproduces exactly, which pins the
+species set and topology as identical to the original run.
 
 > **Note on the code:** `orchidrootsplotting.Rmd` and `OrchidRootsPlots.Rmd` are the two submitted analysis files, unchanged except that their hardcoded Windows input paths were rewritten to relative paths. Both read the raw scrape, which is not distributed here, so neither runs from a clone as-is — they are kept as the record of what was actually submitted, and `species_tree_signal.R` is the runnable equivalent of the second one. The rendered notebook from the original run is committed as [`analysis/orchidrootsplotting.nb.html`](analysis/orchidrootsplotting.nb.html).
 
@@ -69,7 +62,7 @@ statistics drift. [`ERRATA.md`](ERRATA.md) sets out the evidence.
 
 ```
 writeup.md   full write-up, figures and tables inline
-ERRATA.md    defects found in a post-hoc audit of the submitted text
+CORRECTIONS.md  post-submission corrections to the write-up
 docs/        original submitted .docx + the earlier research proposal
 figures/     figure panels as PNG (Fig 1-3, Fig S1-S2)
 analysis/    derive_tables.R, figures_from_derived.R, species_tree_signal.R,

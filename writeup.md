@@ -2,13 +2,11 @@
 
 **Jaret Arnold** — May 2025
 
-> Course write-up, bioinformatics. The text below is the submitted document verbatim; the original `.docx` is in [`docs/`](docs/). Figures are placed at their point of reference, with the original captions where the document supplied them.
->
-> **Known defects are recorded in [`ERRATA.md`](ERRATA.md) rather than corrected in place**, so this stays a faithful copy of what was submitted. They include two wrong DOIs, a miscited _Cattleya_ classification paper, and one reference that appears not to exist.
+> Course write-up, bioinformatics. This is the submitted document with citation and internal-consistency errors corrected; the original submitted `.docx` is preserved unchanged in [`docs/`](docs/), and [`CORRECTIONS.md`](CORRECTIONS.md) lists what was changed. Figures are placed at their point of reference, with the original captions where the document supplied them.
 
 ## Abstract
 
-Hybridization in the genus _Cattleya_ (Orchidaceae) has been documented extensively by the Royal Horticultural Society (RHS), serving as a rich dataset to evaluate anthropogenic hybridization over time (Cribb & Butterfield, 2002). Using data scraped from orchidroots.com, rates of man-made hybridization and yearly trends can be determined to help understand how humans interact with and create new _Cattleya_ hybrids. Specifically, this work serves to investigate if hybridization has increased over time and if those hybrids have become more complex (containing an increasing number of species in their ancestry). Additionally, it also functions as a resource to examine potential phylogenetic hybridization signal. Results show the rate of hybridization and complexity have been gradually increasing since records began in the 1850s. Phylogenetic signal tests on reconstructed species trees revealed significant phylogenetic signal using Pagel's lambda (p-value = 2e-06), Abouheif's Cmean (p-value = 0.001), and Moran's I (p-value = 0.001), all supporting the conclusion of phylogenetic clustering of hybridization.
+Hybridization in the genus _Cattleya_ (Orchidaceae) has been documented extensively by the Royal Horticultural Society (RHS), serving as a rich dataset to evaluate anthropogenic hybridization over time (Royal Horticultural Society, n.d.). Using data scraped from orchidroots.com, rates of man-made hybridization and yearly trends can be determined to help understand how humans interact with and create new _Cattleya_ hybrids. Specifically, this work serves to investigate if hybridization has increased over time and if those hybrids have become more complex (containing an increasing number of species in their ancestry). Additionally, it also functions as a resource to examine potential phylogenetic hybridization signal. Results show the rate of hybridization and complexity have been gradually increasing since records began in the 1850s. Phylogenetic signal tests on reconstructed species trees revealed significant phylogenetic signal using Pagel's lambda (p-value = 2e-06), Abouheif's Cmean (p-value = 0.001), and Moran's I (p-value = 0.001), all supporting the conclusion of phylogenetic clustering of hybridization.
 
 ## Introduction
 
@@ -24,7 +22,7 @@ Outside of natural hybridization, humans have played a large role in the creatio
 
 ### The Orchid Family & the _Cattleya_ System
 
-_Orchidaceae_ is one of the most diverse plant families with approximately 28,000 species recognized (Dressler, 1993). Hybridization is rampant in this family, both of natural and artificial origin. Since the mid-19th century when Dominy created the first artificial orchid hybrid of _Calanthe_, orchid breeding has expanded drastically. Many of new hybrids even include intergeneric hybrids of up to three, four and even five genera (Jangyukala & Hemanta, 2021). _Cattleya_, in particular, serve as a useful model due to its horticultural value and widespread use in man-made hybrids. Some other genera which are commonly used in hybridization include _Vanda_, _Dendrobium_, _Phalaenopsis_, _Cattleya_, _Oncidium_, and _Cymbidium_. In addition, _Cattleya_ (often referred to as the "corsage orchid") serves as an excellent test system for its cultural significance during the early-to-mid-20th century, where it prompted extensive hybridization programs in Europe and North America (Motes, 2021). Therefore, this genus offers a unique opportunity to examine how latent biological potential and cultural relevance intersect to shape hybridization patterns.
+_Orchidaceae_ is one of the most diverse plant families with approximately 28,000 species recognized (Dressler, 1993). Hybridization is rampant in this family, both of natural and artificial origin. Since the mid-19th century when Dominy created the first artificial orchid hybrid of _Calanthe_, orchid breeding has expanded drastically. Many of new hybrids even include intergeneric hybrids of up to three, four and even five genera (Royal Horticultural Society, n.d.). _Cattleya_, in particular, serve as a useful model due to its horticultural value and widespread use in man-made hybrids. Some other genera which are commonly used in hybridization include _Vanda_, _Dendrobium_, _Phalaenopsis_, _Cattleya_, _Oncidium_, and _Cymbidium_. In addition, _Cattleya_ (often referred to as the "corsage orchid") serves as an excellent test system for its cultural significance during the early-to-mid-20th century, where it prompted extensive hybridization programs in Europe and North America (Motes, 2021). Therefore, this genus offers a unique opportunity to examine how latent biological potential and cultural relevance intersect to shape hybridization patterns.
 
 ### Study Objectives
 
@@ -122,23 +120,21 @@ Despite the limitations, there remains great potential to continue this analysis
 
 ## References
 
-Abbott, R., Albach, D., Ansell, S., Arntzen, J. W., Baird, S. J., Bierne, N., ... & Zinner, D. (2013). Hybridization and speciation. _Journal of Evolutionary Biology_, 26(2), 229–246. https://doi.org/10.1111/jeb.12099
+Abbott, R., Albach, D., Ansell, S., Arntzen, J. W., Baird, S. J., Bierne, N., ... & Zinner, D. (2013). Hybridization and speciation. _Journal of Evolutionary Biology_, 26(2), 229–246. https://doi.org/10.1111/j.1420-9101.2012.02599.x
 
 Anderson, E. (1949). _Introgressive Hybridization_. Wiley.
+
+Arnold, M. L. (1997). _Natural Hybridization and Evolution_. Oxford University Press.
 
 Barton, N. H., & Hewitt, G. M. (1985). Analysis of hybrid zones. _Annual Review of Ecology and Systematics_, 16(1), 113–148. https://doi.org/10.1146/annurev.es.16.110185.000553
 
 Blomberg, S. P., Garland, T., & Ives, A. R. (2003). Testing for phylogenetic signal in comparative data: Behavioral traits are more labile. _Evolution_, 57(4), 717–745. https://doi.org/10.1111/j.0014-3820.2003.tb00285.x
 
-Cribb, P., & Butterfield, I. (2002). _The Genus Paphiopedilum: Orchid Register and Checklist_. Royal Horticultural Society.
-
 Dressler, R. L. (1993). _Phylogeny and Classification of the Orchid Family_. Cambridge University Press.
 
 Grafen, A. (1989). The phylogenetic regression. _Philosophical Transactions of the Royal Society B: Biological Sciences_, 326(1233), 119–157. https://doi.org/10.1098/rstb.1989.0106
 
-Jangyukala, B., & Hemanta, B. (2021). A review of intergeneric hybridization in orchids: Diversity and conservation perspectives. _Journal of Orchid Research and Development_, 13(2), 45–54.
-
-Lexer, C., & Widmer, A. (2008). The genic view of plant speciation: Recent progress and emerging questions. _Philosophical Transactions of the Royal Society B: Biological Sciences_, 363(1506), 3023–3036. https://doi.org/10.1098/rstb.2008.0076
+Lexer, C., & Widmer, A. (2008). The genic view of plant speciation: Recent progress and emerging questions. _Philosophical Transactions of the Royal Society B: Biological Sciences_, 363(1506), 3023–3036. https://doi.org/10.1098/rstb.2008.0078
 
 Mallet, J. (2007). Hybrid speciation. _Nature_, 446(7133), 279–283. https://doi.org/10.1038/nature05706
 
@@ -148,8 +144,10 @@ Pagel, M. (1999). Inferring the historical patterns of biological evolution. _Na
 
 Rieseberg, L. H., & Carney, S. E. (1998). Plant hybridization. _New Phytologist_, 140(4), 599–624. https://doi.org/10.1046/j.1469-8137.1998.00315.x
 
+Royal Horticultural Society. (n.d.). _The International Orchid Register_. https://apps.rhs.org.uk/horticulturaldatabase/orchidregister/orchidregister.asp
+
 Stebbins, G. L. (1959). The role of hybridization in evolution. _Proceedings of the American Philosophical Society_, 103(2), 231–251.
 
-Van den Berg, C. (2014). A revised infrageneric classification for the genus _Cattleya_ (Orchidaceae). _Botanical Journal of the Linnean Society_, 175(1), 95–112.
+Van den Berg, C. (2014). Reaching a compromise between conflicting nuclear and plastid phylogenetic trees: A new classification for the genus _Cattleya_ (Epidendreae; Epidendroideae; Orchidaceae). _Phytotaxa_, 186(2), 75–86. https://doi.org/10.11646/phytotaxa.186.2.2
 
 Whitney, K. D., Ahern, J. R., Campbell, L. G., Albert, L. P., & King, M. S. (2010). Patterns of hybridization in plants. _Perspectives in Plant Ecology, Evolution and Systematics_, 12(3), 175–182. https://doi.org/10.1016/j.ppees.2010.02.002
